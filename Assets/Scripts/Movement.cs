@@ -1,162 +1,327 @@
-using System.Collections;
-using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
-using TMPro;
 
 public class PlayerMovementAdvanced : MonoBehaviour
 {
-    //her yapýlacak hareket iþlemi için deðiþkenler tanýmlandý.
 
-
-    [Header("Movement")]
-    private float moveSpeed;
-    public float walkSpeed;
-    public float sprintSpeed;
-
-    public float groundDrag;
-
-    [Header("Jumping")]
-    public float jumpForce;
-    public float jumpCooldown;
-    public float airMultiplier;
-    bool readyToJump;
-    [Header("Keybinds")]
-    public KeyCode jumpKey = KeyCode.Space;
-    public KeyCode sprintKey = KeyCode.LeftShift;
-
-    [Header("Ground Check")]
-    public float playerHeight;
-    public LayerMask whatIsGround;
-    bool grounded;
-
-
-    public Transform orientation;
-
-    float horizontalInput;
-    float verticalInput;
-
-    Vector3 moveDirection;
-
-    Rigidbody rb;
-
-    public MovementState state;
-    public enum MovementState
+    public float moveSpeed = 8f;
+    public float sprintSpeed = 10f;
+    public float rotationSpeed = 3f;
+    
+    public bool isSprinting;
+    
+    private Rigidbody rb;
+    private Animator anim;
+    public Camera camera;
+    
+    void Start()
     {
-        walking,
-        sprinting,
-        air
-    }
-
-    private void Start()
-    {     //rigid body alýndý
         rb = GetComponent<Rigidbody>();
-        rb.freezeRotation = true;
-         //zýplama durumuna müsaitlik aktive edildi
-        readyToJump = true;
-
+        anim = GetComponent<Animator>(); 
     }
-
-    private void Update()
+    
+    void Update()
     {
-        // grounded olup olmama durum kontrolü
-        grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
-
-        //girilecek inputa göre hýz ve durum kontrolleri saðlandý
-        MyInput();
-        SpeedControl();
-        StateHandler();
-
-        //  grounded durumuna gelinceye kadar drag 0 a çekildi
-        if (grounded)
-            rb.drag = groundDrag;
-        else
-            rb.drag = 0;
+        Move();
     }
-
-    private void FixedUpdate()
+    
+    private void Move()
     {
-        MovePlayer();
-    }
-
-    private void MyInput()
-    {
-        horizontalInput = Input.GetAxisRaw("Horizontal");
-        verticalInput = Input.GetAxisRaw("Vertical");
-
-        // zýplama durumlarýnýn uygunlupuna göre gerçekleþmesi saðlandý
-        if (Input.GetKey(jumpKey) && readyToJump && grounded)
+        if(Input.GetKeyDown(KeyCode.LeftShift))
         {
-            readyToJump = false;
-
-            Jump();
-
-            Invoke(nameof(ResetJump), jumpCooldown);
+            isSprinting = true;
+            camera.DOFieldOfView(80, 0.5f);
         }
-
-    }
-
-    private void StateHandler()
-    {       //stateler belirlendi (baþlangýçta biri seçilmek üzere)
-        // Koþma durumu
-        if (grounded && Input.GetKey(sprintKey))
+        else if(Input.GetKeyUp(KeyCode.LeftShift))
         {
-            state = MovementState.sprinting;
-            moveSpeed = sprintSpeed;
+            camera.DOFieldOfView(60, 0.5f);
+            isSprinting = false;
         }
-
-        // yürüme durumu
-        else if (grounded)
-        {
-            state = MovementState.walking;
-            moveSpeed = walkSpeed;
-        }
-
-        // zýplama durumu
-        else
-        {
-            state = MovementState.air;
-        }
-    }
-
-    private void MovePlayer()
-    {
-        // Hareket edilecek yön hesaplamasý
-        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
-
-        // yer hareketi
-         if (grounded)
-            rb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
-
-        // hava hareketi
-        else if (!grounded)
-            rb.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
-    }
-
-    private void SpeedControl()
-    {
-
-        // ground veya hava da hýz limitlenmesi saðlandý
-            Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-
-            // limit velocity if needed
-            if (flatVel.magnitude > moveSpeed)
-            {
-                Vector3 limitedVel = flatVel.normalized * moveSpeed;
-                rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
-            }
         
+        var movement = GetMovement();
+        movement = Vector3.ClampMagnitude(movement, 1);
+        
+        Quaternion cameraRotation = Quaternion.Euler(0, camera.transform.rotation.eulerAngles.y, 0);
+        movement = cameraRotation * movement;
+    
+        anim.SetFloat("Speed", movement.magnitude);
+        Vector3 newPosition = transform.position + movement * Time.deltaTime * (isSprinting ? sprintSpeed : moveSpeed);
+    
+        newPosition.y = Terrain.activeTerrain.SampleHeight(newPosition);
+        transform.position = newPosition;
+        Rotate(movement);
     }
-
-    private void Jump()
+    
+    private void Rotate(Vector3 movement)
     {
-        // zýplama gerçekleþtirildi
-        rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-
-        rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+        if (movement != Vector3.zero)
+        {
+            float targetAngle = Mathf.Atan2(movement.x, movement.z) * Mathf.Rad2Deg;
+            Quaternion targetRotation = Quaternion.Euler(0, targetAngle, 0);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 10f * Time.deltaTime);
+        }
     }
-    private void ResetJump()
-    {  //zýplama sonrasý durum resetlendi
-        readyToJump = true;
-
+    
+    private Vector3 GetMovement()
+    {
+        var horizontal = Input.GetAxis("Horizontal");
+        var vertical = Input.GetAxis("Vertical");
+        var movement = new Vector3(horizontal, 0, vertical);
+    
+        return movement;
     }
+    // //her yapï¿½lacak hareket iï¿½lemi iï¿½in deï¿½iï¿½kenler tanï¿½mlandï¿½.
+    //
+    // public string[] randomAttacks;
+    //
+    // [Header("Movement")]
+    // private float moveSpeed = 3.5f;
+    // public float sprintSpeed = 5f;
+    // public float walkSpeed;
+    // public float rotateSpeed = 5;
+    //
+    // public float groundDrag;
+    //
+    // [Header("Inputs")]
+    // public float vertical; 
+    // public float horizontal;
+    // public float moveAmount;
+    // public Vector3 moveDir;
+    //
+    // [Header("States")]
+    // public bool onGround;
+    // public bool sprint;
+    // [HideInInspector]
+    // public bool jump;
+    // [HideInInspector]
+    // public bool normalAttack;
+    // [HideInInspector]
+    // public bool comboAttack;
+    // public bool canMove;
+    // [HideInInspector]
+    // public bool roll;
+    //
+    // [Header("Jumping")]
+    // public float jumpForce;
+    // public float jumpCooldown;
+    // public float airMultiplier;
+    // bool readyToJump;
+    //
+    // [Header("Keybinds")]
+    // public KeyCode jumpKey = KeyCode.Space;
+    // public KeyCode sprintKey = KeyCode.LeftShift;
+    //
+    // [Header("Ground Check")]
+    // public float playerHeight;
+    // public LayerMask whatIsGround;
+    // bool grounded;
+    //
+    //
+    // public Transform orientation;
+    //
+    // float horizontalInput;
+    // float verticalInput;
+    //
+    // Vector3 moveDirection;
+    // float fixedDelta;
+    // float delta;
+    // Animator anim;
+    // [HideInInspector]
+    // Rigidbody rb;
+    //
+    // public MovementState state;
+    // public enum MovementState
+    // {
+    //     walking,
+    //     sprinting,
+    //     air
+    // }
+    //
+    // private void Start()
+    // {     //rigid body alï¿½ndï¿½
+    //     rb = GetComponent<Rigidbody>();
+    //     rb.freezeRotation = true;
+    //      //zï¿½plama durumuna mï¿½saitlik aktive edildi
+    //     readyToJump = true;
+    //
+    // }
+    //
+    // private void Update()
+    // {
+    //     // grounded olup olmama durum kontrolï¿½
+    //     grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.2f, whatIsGround);
+    //
+    //     //girilecek inputa gï¿½re hï¿½z ve durum kontrolleri saï¿½landï¿½
+    //     MyInput();
+    //     SpeedControl();
+    //     StateHandler();
+    //
+    //     //  grounded durumuna gelinceye kadar drag 0 a ï¿½ekildi
+    //     if (grounded)
+    //         rb.drag = groundDrag;
+    //     else
+    //         rb.drag = 0;
+    // }
+    //
+    // private void FixedUpdate()
+    // {
+    //     fixedDelta = Time.fixedDeltaTime;
+    //     MovePlayer();
+    // }
+    //
+    // void GetInput()
+    // {
+    //     vertical = Input.GetAxis("Vertical");
+    //     horizontal = Input.GetAxis("Horizontal");
+    //     sprint = Input.GetButton("SprintInput");
+    //     jump = Input.GetButtonDown("Jump");
+    //     normalAttack = Input.GetButtonDown("Fire1");
+    //     comboAttack = Input.GetButtonDown("Fire2");
+    //     roll = Input.GetButtonDown("Fire3");
+    // }
+    //
+    // private void MyInput()
+    // {
+    //     horizontalInput = Input.GetAxisRaw("Horizontal");
+    //     verticalInput = Input.GetAxisRaw("Vertical");
+    //
+    //     // zï¿½plama durumlarï¿½nï¿½n uygunlupuna gï¿½re gerï¿½ekleï¿½mesi saï¿½landï¿½
+    //     if (Input.GetKey(jumpKey) && readyToJump && grounded)
+    //     {
+    //         readyToJump = false;
+    //
+    //         Jump();
+    //
+    //         Invoke(nameof(ResetJump), jumpCooldown);
+    //     }
+    //
+    // }
+    //
+    // void UpdateStates()
+    //     {
+    //         canMove = anim.GetBool("canMove"); 
+    //
+    //         if (jump)
+    //         {
+    //             if (onGround && canMove)
+    //             {
+    //                 anim.CrossFade("falling", 0.1f);
+    //                 rb.AddForce(0, jumpForce, 0);    
+    //             }            
+    //         }   
+    //
+    //         if(comboAttack)
+    //         {
+    //             if(onGround)
+    //             {
+    //                 anim.SetTrigger("combo");
+    //                 
+    //             }
+    //         }
+    //
+    //         if(roll && onGround)
+    //         {                
+    //             anim.SetTrigger("roll");
+    //         }            
+    //         
+    //         float targetSpeed = moveSpeed;
+    //          
+    //         if (sprint)
+    //         {
+    //             targetSpeed = sprintSpeed;            
+    //         }
+    //         //
+    //         // Vector3 v = vertical * camManager.transform.forward;
+    //         // Vector3 h = horizontal * camManager.transform.right;            
+    //         
+    //         // moveDir = ((v + h).normalized) * (targetSpeed * moveAmount);            
+    //         
+    //         moveDir.y = rb.velocity.y;            
+    //         
+    //         float m = Mathf.Abs(horizontal) + Mathf.Abs(vertical);
+    //         moveAmount = Mathf.Clamp01(m);
+    //         
+    //         if (normalAttack && canMove)
+    //         {
+    //             string targetAnim;
+    //
+    //             int r = Random.Range(0, randomAttacks.Length);
+    //             targetAnim = randomAttacks[r];
+    //
+    //             anim.CrossFade(targetAnim, 0.1f);       
+    //
+    //             if (!onGround)
+    //             {
+    //                 anim.CrossFade("JumpAttack", 0.1f);
+    //             }
+    //
+    //             normalAttack = false;
+    //         } 
+    //                    
+    //     }
+    //
+    // private void StateHandler()
+    // {       //stateler belirlendi (baï¿½langï¿½ï¿½ta biri seï¿½ilmek ï¿½zere)
+    //     // Koï¿½ma durumu
+    //     if (grounded && Input.GetKey(sprintKey))
+    //     {
+    //         state = MovementState.sprinting;
+    //         moveSpeed = sprintSpeed;
+    //     }
+    //
+    //     // yï¿½rï¿½me durumu
+    //     else if (grounded)
+    //     {
+    //         state = MovementState.walking;
+    //         moveSpeed = walkSpeed;
+    //     }
+    //
+    //     // zï¿½plama durumu
+    //     else
+    //     {
+    //         state = MovementState.air;
+    //     }
+    // }
+    //
+    // private void MovePlayer()
+    // {
+    //     // Hareket edilecek yï¿½n hesaplamasï¿½
+    //     moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+    //
+    //     // yer hareketi
+    //      if (grounded)
+    //         rb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
+    //
+    //     // hava hareketi
+    //     else if (!grounded)
+    //         rb.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
+    // }
+    //
+    // private void SpeedControl()
+    // {
+    //
+    //     // ground veya hava da hï¿½z limitlenmesi saï¿½landï¿½
+    //         Vector3 flatVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+    //
+    //         // limit velocity if needed
+    //         if (flatVel.magnitude > moveSpeed)
+    //         {
+    //             Vector3 limitedVel = flatVel.normalized * moveSpeed;
+    //             rb.velocity = new Vector3(limitedVel.x, rb.velocity.y, limitedVel.z);
+    //         }
+    //     
+    // }
+    //
+    // private void Jump()
+    // {
+    //     // zï¿½plama gerï¿½ekleï¿½tirildi
+    //     rb.velocity = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
+    //
+    //     rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+    // }
+    // private void ResetJump()
+    // {  //zï¿½plama sonrasï¿½ durum resetlendi
+    //     readyToJump = true;
+    //
+    // }
 }
