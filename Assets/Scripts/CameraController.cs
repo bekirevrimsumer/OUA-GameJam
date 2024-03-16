@@ -24,9 +24,6 @@ public class CameraController : MonoBehaviour
             cameraRotationX += mouseX * cameraSpeed;
             cameraRotationY -= mouseY * cameraSpeed;
             
-            Debug.Log(cameraRotationX);
-            Debug.Log(cameraRotationY);
-
             cameraRotationY = Mathf.Clamp(cameraRotationY, minYAngle, maxYAngle);
         }
 
