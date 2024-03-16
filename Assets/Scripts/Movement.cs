@@ -46,6 +46,12 @@ public float moveSpeed;
         AttackInput();
         UltimateInput();
         Move();
+        
+        if (gameObject.GetComponent<PlayerManagement>().stamina == 0)
+        {
+            isSprinting = false;
+            moveSpeed = walkSpeed;
+        }
     }
 
     private void InitializeAttackAnimations()
@@ -157,6 +163,7 @@ public float moveSpeed;
         isSprinting = true;
         camera.DOFieldOfView(80, 0.5f);
         moveSpeed = sprintSpeed;
+        gameObject.GetComponent<PlayerManagement>().UseStamina(gameObject.GetComponent<PlayerManagement>().maxStamina/1000);
     }
 
     private void StartWalking()
