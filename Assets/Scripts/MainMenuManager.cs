@@ -17,7 +17,10 @@ public class MainMenuManager : MonoBehaviour
     {
         SceneManager.LoadScene(1);
     }
-
+    public void MainMenu()
+    {
+        SceneManager.LoadScene(0);
+    }
     public void SettingsButton()
     {
         mainManu.SetActive(false);
