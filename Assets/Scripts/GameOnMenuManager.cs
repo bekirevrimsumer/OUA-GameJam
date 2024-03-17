@@ -34,6 +34,8 @@ public class GameOnMenuManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
             menuInGame.SetActive(true);
             Time.timeScale = 0;
         }
@@ -48,6 +50,8 @@ public class GameOnMenuManager : MonoBehaviour
     {
         menuInGame.SetActive(false);
         Time.timeScale = 1;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     public void Mute()  //zaten sessizse ekle

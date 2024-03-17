@@ -14,6 +14,12 @@ public class CameraController : MonoBehaviour
     public float minYAngle = 0f;  // Kamera minimum dikey açısı
     public float maxYAngle = 150f;  // Kamera maksimum dikey açısı
 
+    private void Start()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+    
     private void Update()
     {
         if (Input.GetMouseButton(1))
