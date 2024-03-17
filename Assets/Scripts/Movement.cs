@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using DG.Tweening;
+using TMPro;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public class PlayerMovementAdvanced : MonoBehaviour
 {
@@ -14,11 +17,13 @@ public class PlayerMovementAdvanced : MonoBehaviour
     public bool isGrounded;
     public bool isJumping;
     public bool isUlti;
+    public bool isCollectingTrash;
 
     private Rigidbody rb;
     private Animator anim;
     public Camera camera;
-
+    private PlayerManager playerManager;
+    public TextMeshProUGUI removeTrashText;
     public MovementState state;
 
     public enum MovementState
@@ -36,6 +41,7 @@ public class PlayerMovementAdvanced : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         anim = GetComponent<Animator>();
+        playerManager = GetComponent<PlayerManager>();
         isGrounded = true;
 
         InitializeAttackAnimations();
@@ -43,27 +49,111 @@ public class PlayerMovementAdvanced : MonoBehaviour
 
     void Update()
     {
-        AttackInput();
-        UltimateInput();
-        Move();
+        if (isCollectingTrash == false)
+        {
+            AttackInput();
+            UltimateInput();
+            Move();
+        }
         
-        if (gameObject.GetComponent<PlayerManagement>().stamina == 0)
+        if (playerManager.stamina == 0)
         {
             isSprinting = false;
             moveSpeed = walkSpeed;
         }
     }
 
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.gameObject.tag == "Trash")
+        {
+            removeTrashText.gameObject.SetActive(true);
+        }
+        
+        if (other.gameObject.tag == "Enemy")
+        {
+            var enemy = other.gameObject.GetComponent<EnemyManagement>();
+            var navMesh = other.gameObject.GetComponent<NavMesh>();
+            if (navMesh.isFighting == true)
+            {
+                enemy.GetDamage(10);
+            }
+        }
+    }
+
+    private void OnTriggerStay(Collider other)
+    {
+        if(other.gameObject.tag == "Trash")
+        {
+            if (Input.GetKeyDown(KeyCode.F))
+            {
+                isCollectingTrash = true;
+                moveSpeed = 0;
+                anim.SetTrigger("CollectTrash");
+                removeTrashText.gameObject.SetActive(false);
+                other.gameObject.GetComponent<Trash>().navMesh.FightPlayer();
+                Destroy(other.gameObject, 1f);
+                Invoke("ResetCollectingTrash", 1.5f);
+            }
+        }
+    }
+    
+    private void OnTriggerExit(Collider other)
+    {
+        if(other.gameObject.tag == "Trash")
+        {
+            removeTrashText.gameObject.SetActive(false);
+        }
+    }
+
+    // private void OnCollisionEnter(Collider other)
+    // {
+    //     if(other.gameObject.tag == "Trash")
+    //     {
+    //         removeTrashText.gameObject.SetActive(true);
+    //     }
+    //     
+    //     if (other.gameObject.tag == "Enemy")
+    //     {
+    //         var enemy = other.gameObject.GetComponent<EnemyManagement>();
+    //         enemy.GetDamage(10);
+    //     }
+    // }
+
+    // private void OnCollisionStay(Collider other)
+    // {
+    //     if(other.gameObject.tag == "Trash")
+    //     {
+    //         if (Input.GetKeyDown(KeyCode.F))
+    //         {
+    //             isCollectingTrash = true;
+    //             moveSpeed = 0;
+    //             anim.SetTrigger("CollectTrash");
+    //             removeTrashText.gameObject.SetActive(false);
+    //             other.gameObject.GetComponent<Trash>().navMesh.FightPlayer();
+    //             Destroy(other.gameObject, 1f);
+    //             Invoke("ResetCollectingTrash", 1.5f);
+    //         }
+    //     }
+    // }
+    //
+    // private void OnCollisionExit(Collider other)
+    // {
+    //     if(other.gameObject.tag == "Trash")
+    //     {
+    //         removeTrashText.gameObject.SetActive(false);
+    //     }
+    // }
+
     private void InitializeAttackAnimations()
     {
         attackAnimations.Add("Attack1");
         attackAnimations.Add("Attack2");
-        attackAnimations.Add("Attack3");
     }
 
     private void AttackInput()
     {
-        if(Input.GetMouseButtonDown(0))
+        if(Input.GetMouseButtonDown(0) && isCollectingTrash == false)
         {
             camera.gameObject.transform.DOShakeRotation(0.2f, 0.3f, 10, 90, false);
         }
@@ -84,12 +174,11 @@ public class PlayerMovementAdvanced : MonoBehaviour
     {
         anim.SetBool("Attack1", false);
         anim.SetBool("Attack2", false);
-        anim.SetBool("Attack3", false);
     }
 
     private void UltimateInput()
     {
-        if (Input.GetKeyDown(KeyCode.R) && !isUlti)
+        if (Input.GetKeyDown(KeyCode.R) && !isUlti && isCollectingTrash == false)
         {
             camera.gameObject.transform.DOShakeRotation(2.3f, 0.5f, 10, 90, false);
             StartUltimate();
@@ -101,7 +190,7 @@ public class PlayerMovementAdvanced : MonoBehaviour
         isGrounded = false;
         moveSpeed = 0;
         anim.SetBool("IsUlti", true);
-        Invoke("ResetUlti", 2.5f);
+        Invoke("ResetUlti", 2.4f);
     }
 
     private void ResetUlti()
@@ -109,6 +198,11 @@ public class PlayerMovementAdvanced : MonoBehaviour
         anim.SetBool("IsUlti", false);
         isGrounded = true;
         isUlti = false;
+    }
+    
+    private void ResetCollectingTrash()
+    {
+        isCollectingTrash = false;
     }
 
     private void Move()
@@ -152,7 +246,7 @@ public class PlayerMovementAdvanced : MonoBehaviour
 
     private void StateHandler()
     {
-        if (isGrounded && Input.GetKey(sprintKey))
+        if (isGrounded && Input.GetKey(sprintKey) && playerManager.stamina != 0)
         {
             StartSprinting();
         }
@@ -168,7 +262,7 @@ public class PlayerMovementAdvanced : MonoBehaviour
         isSprinting = true;
         camera.DOFieldOfView(80, 0.5f);
         moveSpeed = sprintSpeed;
-        gameObject.GetComponent<PlayerManagement>().UseStamina(gameObject.GetComponent<PlayerManagement>().maxStamina/1000);
+        playerManager.UseStamina(playerManager.maxStamina/1000);
     }
 
     private void StartWalking()

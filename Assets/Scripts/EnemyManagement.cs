@@ -6,17 +6,57 @@ using UnityEngine.UI;
 public class EnemyManagement : MonoBehaviour
 {
 
-    public PlayerManagement playerManagement;
+    public PlayerManager playerManagement;
+    public PlayerMovementAdvanced playerMovement;
+    public Animator animator;
     
     public float damage;
     public float health;
+    
+    private NavMesh navMesh;
 
-    //public Slider slider;  //ENEMY HEALTHBAR
-    private void OnCollisionEnter(Collision other)
+    private void Start()
     {
-        if (other.gameObject.CompareTag("Player"))
+        navMesh = GetComponent<NavMesh>();
+        animator = GetComponent<Animator>();
+    }
+    
+    // private void OnCollisionEnter(Collision other)
+    // {
+    //     Debug.Log("Collision");
+    //     if (other.gameObject.CompareTag("Player"))
+    //     {
+    //         Debug.Log("Player hit");
+    //         playerManagement.GetDamage(damage);
+    //     }
+    // }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.gameObject.CompareTag("Player") && navMesh.isFighting == true)
         {
-            playerManagement.GetDamage(damage);
+            var random = UnityEngine.Random.Range(0, 5);
+            if(random == 0)
+                playerManagement.GetDamage(damage);
         }
+    }
+
+    public void GetDamage(float damage)
+    {
+        if ((health - damage) >= 0)
+        {
+            health -= damage;
+        }
+        else
+        {
+            health = 0;
+            Die();
+        }
+    }
+    
+    public void Die()
+    {
+        animator.SetBool("isDead", true);
+        Destroy(gameObject,2);
     }
 }

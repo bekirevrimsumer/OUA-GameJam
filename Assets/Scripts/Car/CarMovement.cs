@@ -37,7 +37,6 @@ public class CarMovement : MonoBehaviour
             if (waypoint.waypointSO.IsMisseable)
             {
                 var random = UnityEngine.Random.Range(0, 2);
-                Debug.Log(random);
                 if (random == 0)
                 {
                     return;
