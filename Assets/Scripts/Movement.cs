@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class PlayerMovementAdvanced : MonoBehaviour
 {
-public float moveSpeed;
+    public float moveSpeed;
     public float walkSpeed = 8f;
     public float sprintSpeed = 10f;
     public float jumpForce = 5f;
@@ -63,6 +63,10 @@ public float moveSpeed;
 
     private void AttackInput()
     {
+        if(Input.GetMouseButtonDown(0))
+        {
+            camera.gameObject.transform.DOShakeRotation(0.2f, 0.3f, 10, 90, false);
+        }
         if (Input.GetMouseButton(0))
         {
             PerformRandomAttack();
@@ -87,6 +91,7 @@ public float moveSpeed;
     {
         if (Input.GetKeyDown(KeyCode.R) && !isUlti)
         {
+            camera.gameObject.transform.DOShakeRotation(2.3f, 0.5f, 10, 90, false);
             StartUltimate();
         }
     }
