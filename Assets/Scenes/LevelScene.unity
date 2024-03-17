@@ -27108,11 +27108,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6894998645988452624, guid: 296203bd17e368e40b679a1285e1c6e3, type: 3}
       propertyPath: m_IsTrigger
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6965990406026823377, guid: 296203bd17e368e40b679a1285e1c6e3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 98.62
+      value: 101.59
       objectReference: {fileID: 0}
     - target: {fileID: 6965990406026823377, guid: 296203bd17e368e40b679a1285e1c6e3, type: 3}
       propertyPath: m_LocalPosition.y
